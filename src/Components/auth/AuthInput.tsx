@@ -10,8 +10,8 @@ type Props = {
   onChangeText: (text: string) => void;
   icon: keyof typeof MaterialIcons.glyphMap;
   secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address';
-  autoCapitalize?: 'none' | 'sentences';
+   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric'; // ✅ expanded
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'; 
 };
 
 export default function AuthInput({

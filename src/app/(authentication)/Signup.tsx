@@ -1,43 +1,55 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AuthBackground from '../../Components/auth/AuthBackground';
-import AuthButton from '../../Components/auth/AuthButton';
 import AuthCard from '../../Components/auth/AuthCard';
 import AuthHero from '../../Components/auth/AuthHero';
 import AuthInput from '../../Components/auth/AuthInput';
+import SwipeButton from '../../Components/auth/SwipeButton';
+import { useFormField } from '../../hooks/useFormFields';
 import { COLORS } from '../../Constants/Theme';
 
 export default function SignUp() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const name = useFormField();
+  const email = useFormField();
+  const phone = useFormField();
+  const password = useFormField();
+  const confirmPassword = useFormField();
 
-  const handleSignUp = () => {
-    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+  // ✅ Compute validity from state values (for UI feedback)
+  const allValid =
+    name.value.trim().length > 0 &&
+    email.value.trim().length > 0 &&
+    password.value.trim().length >= 6 &&
+    confirmPassword.value.trim().length > 0 &&
+    password.value === confirmPassword.value;
+
+  const validate = (): boolean => {
+    if (!name.ref.current.trim() || !email.ref.current.trim() || !password.ref.current.trim() || !confirmPassword.ref.current.trim()) {
       Alert.alert('Missing Fields', 'Please fill in all required fields.');
-      return;
+      return false;
     }
-    if (password !== confirmPassword) {
+    if (password.ref.current !== confirmPassword.ref.current) {
       Alert.alert('Password Mismatch', 'Passwords do not match.');
-      return;
+      return false;
     }
-    if (password.length < 6) {
+    if (password.ref.current.length < 6) {
       Alert.alert('Weak Password', 'Password must be at least 6 characters.');
-      return;
+      return false;
     }
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      router.replace('/(tabs)');
-    }, 1500);
+    return true;
+  };
+
+  const handleSwipeComplete = async (): Promise<boolean> => {
+    const valid = validate();
+    if (valid) {
+      await new Promise(res => setTimeout(res, 1500));
+      router.replace('/(tabs)/home');
+    }
+    return valid;
   };
 
   return (
@@ -52,13 +64,20 @@ export default function SignUp() {
           <AuthHero size="small" tagline="Create Your Farm Account" />
 
           <AuthCard title="Get Started" subtitle="Join thousands of farmers managing their farms">
-            <AuthInput label="Full Name" placeholder="Your full name" value={name} onChangeText={setName} icon="person" autoCapitalize="words" />
-            <AuthInput label="Email Address" placeholder="farmer@example.com" value={email} onChangeText={setEmail} icon="email" keyboardType="email-address" />
-            <AuthInput label="Phone (Optional)" placeholder="+233 XX XXX XXXX" value={phone} onChangeText={setPhone} icon="phone" keyboardType="phone-pad" />
-            <AuthInput label="Password" placeholder="••••••••" value={password} onChangeText={setPassword} icon="lock" secureTextEntry />
-            <AuthInput label="Confirm Password" placeholder="••••••••" value={confirmPassword} onChangeText={setConfirmPassword} icon="lock-outline" secureTextEntry />
+            <AuthInput label="Full Name" placeholder="Your full name" value={name.value} onChangeText={name.set} icon="person" autoCapitalize="words" />
+            <AuthInput label="Email Address" placeholder="farmer@example.com" value={email.value} onChangeText={email.set} icon="email" keyboardType="email-address" />
+            <AuthInput label="Phone (Optional)" placeholder="+233 XX XXX XXXX" value={phone.value} onChangeText={phone.set} icon="phone" keyboardType="phone-pad" />
+            <AuthInput label="Password" placeholder="••••••••" value={password.value} onChangeText={password.set} icon="lock" secureTextEntry />
+            <AuthInput label="Confirm Password" placeholder="••••••••" value={confirmPassword.value} onChangeText={confirmPassword.set} icon="lock-outline" secureTextEntry />
 
-            <AuthButton label="Create Account" onPress={handleSignUp} loading={isLoading} icon="person-add" />
+            {/* ✅ Pass allValid so SwipeButton can change track color */}
+            <SwipeButton
+              label="Swipe to Register"
+              onSwipeComplete={handleSwipeComplete}
+              width={260}
+              height={54}
+              isValid={allValid}
+            />
 
             <View style={styles.loginLink}>
               <Text style={styles.loginText}>Already have an account? </Text>
@@ -75,7 +94,7 @@ export default function SignUp() {
 
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1, paddingHorizontal: 24 },
-  loginLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  loginLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   loginText: { fontSize: 14, color: COLORS.textSecondary },
   loginBtn: { fontSize: 14, color: COLORS.accent, fontWeight: '600' },
 });

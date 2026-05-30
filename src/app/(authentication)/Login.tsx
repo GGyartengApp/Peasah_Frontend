@@ -31,7 +31,7 @@ export default function Login() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/home');
     }, 1200);
   };
 
