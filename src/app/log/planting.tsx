@@ -1,0 +1,186 @@
+import { MaterialIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import {
+  KeyboardAvoidingView, Modal, Platform,
+  ScrollView, StyleSheet, Text, TouchableOpacity, View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button } from '../../Components/ui/Button';
+import { Card } from '../../Components/ui/Card';
+import { Input } from '../../Components/ui/Input';
+import { SyncBadge, SyncStatus } from '../../Components/ui/SyncBadge';
+
+const CROP_SUGGESTIONS = ['Maize', 'Cassava', 'Rice', 'Tomatoes', 'Yam', 'Cocoa', 'Plantain', 'Soybean'];
+
+export default function PlantingScreen() {
+  const insets = useSafeAreaInsets();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [cropType,       setCropType]       = useState('');
+  const [seedCount,      setSeedCount]      = useState('');
+  const [plantingDate,   setPlantingDate]   = useState('');
+  const [labourCost,     setLabourCost]     = useState('');
+  const [fertilizerType, setFertilizerType] = useState('');
+  const [fertilizerQty,  setFertilizerQty]  = useState('');
+  const [loading,        setLoading]        = useState(false);
+  const [syncStatus,     setSyncStatus]     = useState<SyncStatus | null>(null);
+  const [errors,         setErrors]         = useState<Record<string, string>>({});
+  const [savedLogs,      setSavedLogs]      = useState<any[]>([]);
+
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!cropType.trim()) e.cropType = 'Crop type is required';
+    if (!plantingDate.trim()) e.plantingDate = 'Planting date is required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  function handleSave() {
+    setErrors({});
+    if (!validate()) return;
+    setLoading(true);
+    setTimeout(() => {
+      setSavedLogs(prev => [{
+        id: Date.now().toString(),
+        cropType, seedCount, plantingDate,
+        labourCost, fertilizerType, fertilizerQty,
+        savedAt: new Date().toLocaleString(),
+      }, ...prev]);
+      setSyncStatus('PENDING');
+      setLoading(false);
+      setModalVisible(false);
+      resetForm();
+      setTimeout(() => setSyncStatus('SYNCED'), 2000);
+    }, 1000);
+  }
+
+  function resetForm() {
+    setCropType(''); setSeedCount(''); setPlantingDate('');
+    setLabourCost(''); setFertilizerType(''); setFertilizerQty('');
+    setErrors({});
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <MaterialIcons name="arrow-back" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Planting</Text>
+          <Text style={styles.headerSub}>Stage 2 of 5</Text>
+        </View>
+        {syncStatus && <SyncBadge status={syncStatus} />}
+      </View>
+
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 120 }]} showsVerticalScrollIndicator={false}>
+        <Card style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconCircle}>
+              <MaterialIcons name="grass" size={22} color="#1A7A4A" />
+            </View>
+            <View style={styles.infoText}>
+              <Text style={styles.infoTitle}>What to log here</Text>
+              <Text style={styles.infoBody}>Crop type, seed count, planting date, labour cost, fertilizer type and quantity.</Text>
+            </View>
+          </View>
+        </Card>
+
+        {savedLogs.length > 0 && (
+          <View>
+            <Text style={styles.sectionTitle}>Saved Records</Text>
+            {savedLogs.map(log => (
+              <Card key={log.id} style={styles.logCard}>
+                <View style={styles.logRow}>
+                  <MaterialIcons name="check-circle" size={16} color="#1A7A4A" />
+                  <Text style={styles.logText}>{log.cropType} · {log.plantingDate}</Text>
+                  <Text style={styles.logDate}>{log.savedAt}</Text>
+                </View>
+              </Card>
+            ))}
+          </View>
+        )}
+
+        {savedLogs.length === 0 && (
+          <Card style={styles.emptyCard}>
+            <MaterialIcons name="grass" size={40} color="#E0E0E0" />
+            <Text style={styles.emptyTitle}>No records yet</Text>
+            <Text style={styles.emptySubtitle}>Tap the button below to log planting</Text>
+          </Card>
+        )}
+
+        <Button label="+ Log Planting" onPress={() => setModalVisible(true)} />
+      </ScrollView>
+
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Planting Log</Text>
+              <TouchableOpacity onPress={() => { setModalVisible(false); resetForm(); }}>
+                <MaterialIcons name="close" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.modalContent}>
+              {/* Crop suggestions */}
+              <Text style={styles.inputLabel}>Crop Type *</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                {CROP_SUGGESTIONS.map(c => (
+                  <TouchableOpacity
+                    key={c}
+                    onPress={() => setCropType(c)}
+                    style={[styles.chip, cropType === c && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipText, cropType === c && styles.chipTextActive]}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Input label="" value={cropType} onChangeText={setCropType} placeholder="Or type crop name..." error={errors.cropType} />
+              <Input label="Seed Count" value={seedCount} onChangeText={setSeedCount} keyboardType="numeric" placeholder="e.g. 5000" />
+              <Input label="Planting Date *" value={plantingDate} onChangeText={setPlantingDate} placeholder="YYYY-MM-DD" error={errors.plantingDate} />
+              <Input label="Labour Cost (GHS)" value={labourCost} onChangeText={setLabourCost} keyboardType="decimal-pad" placeholder="e.g. 200" />
+              <Input label="Fertilizer Type" value={fertilizerType} onChangeText={setFertilizerType} placeholder="e.g. NPK, Urea" />
+              <Input label="Fertilizer Quantity (kg)" value={fertilizerQty} onChangeText={setFertilizerQty} keyboardType="decimal-pad" placeholder="e.g. 50" />
+              <Button label="Save Planting" onPress={handleSave} loading={loading} />
+              <Button label="Cancel" onPress={() => { setModalVisible(false); resetForm(); }} variant="secondary" />
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container:      { flex: 1, backgroundColor: '#F5F5F5' },
+  header:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  backBtn:        { padding: 4, marginRight: 8 },
+  headerCenter:   { flex: 1 },
+  headerTitle:    { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
+  headerSub:      { fontSize: 12, color: '#9CA3AF' },
+  content:        { padding: 16 },
+  infoCard:       { padding: 14, marginBottom: 16, backgroundColor: '#E8F5EE', borderColor: '#A5D6B5' },
+  infoRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  infoIconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  infoText:       { flex: 1 },
+  infoTitle:      { fontSize: 14, fontWeight: '700', color: '#1A7A4A', marginBottom: 4 },
+  infoBody:       { fontSize: 13, color: '#2E7D32', lineHeight: 18 },
+  sectionTitle:   { fontSize: 14, fontWeight: '700', color: '#1A1A1A', marginBottom: 8 },
+  logCard:        { padding: 12, marginBottom: 8 },
+  logRow:         { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logText:        { flex: 1, fontSize: 14, color: '#1A1A1A', fontWeight: '500' },
+  logDate:        { fontSize: 11, color: '#9CA3AF' },
+  emptyCard:      { padding: 32, alignItems: 'center', gap: 8, marginBottom: 16 },
+  emptyTitle:     { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
+  emptySubtitle:  { fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
+  inputLabel:     { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6 },
+  chip:           { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: '#F0F0F0', borderWidth: 1, borderColor: '#E0E0E0', marginRight: 8 },
+  chipActive:     { backgroundColor: '#1A7A4A', borderColor: '#1A7A4A' },
+  chipText:       { fontSize: 13, fontWeight: '600', color: '#666' },
+  chipTextActive: { color: '#FFFFFF' },
+  modalOverlay:   { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalSheet:     { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' },
+  modalHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  modalTitle:     { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
+  modalContent:   { padding: 20, paddingBottom: 40 },
+});
